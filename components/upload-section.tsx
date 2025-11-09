@@ -1030,11 +1030,11 @@ VIDEO SPECIFICATIONS:
                                   360° Study
                                 </h4>
                               </div>
-                              <div className="relative aspect-video bg-muted/20 border border-border/30 overflow-hidden shadow-lg">
+                              <div className="relative bg-black border border-border/30 overflow-hidden shadow-lg">
                                 <video
                                   src={video360Url}
                                   controls
-                                  className="w-full h-full object-cover bg-black"
+                                  className="w-full h-auto object-contain"
                                   autoPlay
                                   loop
                                 >
@@ -1058,11 +1058,11 @@ VIDEO SPECIFICATIONS:
                                   Runway Presentation
                                 </h4>
                               </div>
-                              <div className="relative aspect-video bg-muted/20 border border-border/30 overflow-hidden shadow-lg">
+                              <div className="relative bg-black border border-border/30 overflow-hidden shadow-lg">
                                 <video
                                   src={videoRunwayUrl}
                                   controls
-                                  className="w-full h-full object-cover bg-black"
+                                  className="w-full h-auto object-contain"
                                   autoPlay
                                   loop
                                 >

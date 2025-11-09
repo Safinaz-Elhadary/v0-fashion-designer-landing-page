@@ -291,8 +291,6 @@ VIDEO EXECUTION REQUIREMENTS:
 ABSOLUTE REQUIREMENT: The dress worn by the model MUST exactly match the colors, fabric type, silhouette, neckline, sleeves, length, and all other specifications listed above. The video should show how THIS SPECIFIC DRESS moves and looks on a professional runway. Do not substitute or change any design elements.`
 
     console.log("[v0] Starting VEO3 dual video generation")
-    console.log("[v0] 360° video prompt length:", video360Prompt.length, "characters")
-    console.log("[v0] Runway video prompt length:", runwayPrompt.length, "characters")
 
     const { GoogleGenAI, PersonGeneration } = await import("@google/genai")
 
@@ -326,19 +324,45 @@ ABSOLUTE REQUIREMENT: The dress worn by the model MUST exactly match the colors,
     ])
 
     console.log(`[v0] Both video generation operations started`)
-    console.log(`[v0] 360° video operation: ${operation360.name}`)
-    console.log(`[v0] Runway video operation: ${operationRunway.name}`)
 
     const startTime = Date.now()
+    const timeoutBuffer = (maxDuration - 5) * 1000 // Leave 5 seconds buffer
     let op360 = operation360
     let opRunway = operationRunway
 
     while (!op360.done || !opRunway.done) {
-      console.log(
-        `[v0] Polling status - 360°: ${op360.done ? "DONE" : "IN_PROGRESS"}, Runway: ${opRunway.done ? "DONE" : "IN_PROGRESS"}`,
-      )
+      if (Date.now() - startTime > timeoutBuffer) {
+        console.log("[v0] Approaching timeout, returning partial results if available")
 
-      await new Promise((resolve) => setTimeout(resolve, 10000))
+        // Return any completed videos
+        const video360Uri = op360.done ? op360.response?.generatedVideos?.[0]?.video?.uri : null
+        const videoRunwayUri = opRunway.done ? opRunway.response?.generatedVideos?.[0]?.video?.uri : null
+
+        if (video360Uri || videoRunwayUri) {
+          return NextResponse.json({
+            success: true,
+            partial: true,
+            video360Url: video360Uri ? `${video360Uri}&key=${apiKey}` : null,
+            videoRunwayUrl: videoRunwayUri ? `${videoRunwayUri}&key=${apiKey}` : null,
+            video360Filename: video360Uri ? `fashion-360-${Date.now()}.mp4` : null,
+            videoRunwayFilename: videoRunwayUri ? `fashion-runway-${Date.now()}.mp4` : null,
+            message:
+              video360Uri && videoRunwayUri
+                ? "Both videos completed"
+                : `${video360Uri ? "360° video" : "Runway video"} completed. ${!video360Uri ? "360° video" : "Runway video"} is still processing - please try again.`,
+          })
+        }
+
+        return NextResponse.json(
+          {
+            error: "Video generation is taking longer than expected. Please try again in a moment.",
+            retry: true,
+          },
+          { status: 408 },
+        )
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 5000))
 
       // Poll both operations
       const [updated360, updatedRunway] = await Promise.all([
@@ -349,14 +373,12 @@ ABSOLUTE REQUIREMENT: The dress worn by the model MUST exactly match the colors,
       op360 = updated360
       opRunway = updatedRunway
 
-      if (Date.now() - startTime > maxDuration * 1000) {
-        return NextResponse.json({ error: "Video generation timed out" }, { status: 408 })
-      }
+      console.log(
+        `[v0] Status - 360°: ${op360.done ? "DONE" : "IN_PROGRESS"}, Runway: ${opRunway.done ? "DONE" : "IN_PROGRESS"}`,
+      )
     }
 
     console.log(`[v0] Both videos generated successfully!`)
-    console.log(`[v0] 360° video count: ${op360.response?.generatedVideos?.length ?? 0}`)
-    console.log(`[v0] Runway video count: ${opRunway.response?.generatedVideos?.length ?? 0}`)
 
     const video360Uri = op360.response?.generatedVideos?.[0]?.video?.uri
     const videoRunwayUri = opRunway.response?.generatedVideos?.[0]?.video?.uri
@@ -365,16 +387,12 @@ ABSOLUTE REQUIREMENT: The dress worn by the model MUST exactly match the colors,
       const video360Url = `${video360Uri}&key=${apiKey}`
       const videoRunwayUrl = `${videoRunwayUri}&key=${apiKey}`
 
-      console.log("[v0] Both videos generated successfully!")
-
       return NextResponse.json({
         success: true,
         video360Url: video360Url,
         videoRunwayUrl: videoRunwayUrl,
         video360Filename: `fashion-360-${Date.now()}.mp4`,
         videoRunwayFilename: `fashion-runway-${Date.now()}.mp4`,
-        prompt360: video360Prompt,
-        promptRunway: runwayPrompt,
       })
     }
 
